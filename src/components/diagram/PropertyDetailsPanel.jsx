@@ -176,6 +176,16 @@ const PropertyDetailsPanel = ({ property, onUpdate, onDelete, focusSection, focu
     [semanticDefinition?.url]
   );
 
+  // The browse tree serves semantic elements alongside business definitions, so the slot
+  // labels whichever kind is linked. Semantics win the empty state: nothing linked yet is
+  // labelled as a concept, since that is what new links should be.
+  const semanticLabel = useMemo(
+    () => (semanticDefinition && !isSemanticAuthDef(semanticDefinition)
+      ? t('diagram.semantics.businessDefinition')
+      : t('diagram.semantics.semanticConcept')),
+    [semanticDefinition, t]
+  );
+
   // Whether the reference points at a different host — drives the external-link
   // affordance only. Resolution no longer depends on it: getDefinition resolves
   // external/IRI references via the backend when configured.
@@ -457,7 +467,7 @@ const PropertyDetailsPanel = ({ property, onUpdate, onDelete, focusSection, focu
               </DisclosureButton>
               <DisclosurePanel className="px-2 pt-2 pb-1 text-xs text-gray-500 space-y-2">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">{t('diagram.semantics.definition')}</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">{semanticLabel}</label>
                   {semanticDefinition ? (
                     <div className="space-y-2">
                       {/* Definition Link */}
