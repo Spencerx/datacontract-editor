@@ -388,15 +388,15 @@
       "customProperties": "Custom Properties"
     },
     "semantics": {
-      "definition": "Definition",
+      "definition": "Semantic Concept",
       "showDetails": "Show Details",
-      "loading": "Loading definition...",
-      "loadError": "Unable to load definition data.",
+      "loading": "Loading concept...",
+      "loadError": "Could not load this concept.",
       "loadErrorHint": "Check console for details.",
       "sharedProperty": "shared property",
       "owner": "Owner",
       "remove": "Remove",
-      "findDefinition": "Find Definition"
+      "findDefinition": "Find Element"
     },
     "field": {
       "propertyName": {
@@ -647,17 +647,17 @@
     "open": "Open"
   },
   "definitionSelect": {
-    "title": "Find Definition",
-    "subtitle": "Browse definitions",
+    "title": "Find Element",
+    "subtitle": "Browse semantic elements",
     "close": "Close",
     "search": "Search...",
     "conceptCount_one": "{{count}} concept",
     "conceptCount_other": "{{count}} concepts",
     "propertyCount_one": "{{count}} property",
     "propertyCount_other": "{{count}} properties",
-    "loading": "Loading definitions...",
+    "loading": "Loading semantic elements...",
     "noMatches": "No matching elements",
-    "empty": "No definitions yet",
+    "empty": "No semantic elements found",
     "cancel": "Cancel",
     "select": "Select"
   },
@@ -1133,7 +1133,7 @@
     "schema": {
       "heading": "Schema",
       "description": "Schema supports both a business representation and physical implementation",
-      "inheritedFromSemantic": "Inherited from semantic definition",
+      "inheritedFromSemantic": "Inherited from Semantic Concept",
       "noDescription": "No description",
       "example": "Example:",
       "examples": "Examples:",

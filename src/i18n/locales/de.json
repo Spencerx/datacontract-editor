@@ -388,15 +388,15 @@
       "customProperties": "Benutzerdefinierte Eigenschaften"
     },
     "semantics": {
-      "definition": "Definition",
+      "definition": "Semantic Concept",
       "showDetails": "Details anzeigen",
-      "loading": "Definition wird geladen...",
-      "loadError": "Definitionsdaten konnten nicht geladen werden.",
+      "loading": "Konzept wird geladen...",
+      "loadError": "Dieses Konzept konnte nicht geladen werden.",
       "loadErrorHint": "Details findest du in der Konsole.",
       "sharedProperty": "geteilte Eigenschaft",
       "owner": "Eigentümer",
       "remove": "Entfernen",
-      "findDefinition": "Definition suchen"
+      "findDefinition": "Element finden"
     },
     "field": {
       "propertyName": {
@@ -647,17 +647,17 @@
     "open": "Öffnen"
   },
   "definitionSelect": {
-    "title": "Definition finden",
-    "subtitle": "Definitionen durchsuchen",
+    "title": "Element finden",
+    "subtitle": "Semantische Elemente durchsuchen",
     "close": "Schließen",
     "search": "Suchen...",
     "conceptCount_one": "{{count}} Konzept",
     "conceptCount_other": "{{count}} Konzepte",
     "propertyCount_one": "{{count}} Eigenschaft",
     "propertyCount_other": "{{count}} Eigenschaften",
-    "loading": "Definitionen werden geladen...",
+    "loading": "Semantische Elemente werden geladen...",
     "noMatches": "Keine passenden Elemente",
-    "empty": "Noch keine Definitionen",
+    "empty": "Keine semantischen Elemente gefunden",
     "cancel": "Abbrechen",
     "select": "Auswählen"
   },
