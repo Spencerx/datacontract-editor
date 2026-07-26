@@ -218,7 +218,7 @@ const SchemaProperty = ({ property, propertyName, schemaName, indent = 0 }) => {
 						<CustomPropertiesPreview properties={property.customProperties} pillClassName="mr-1 mt-1" hiddenPropertyNames={hiddenNames} customPropertyConfigs={customPropertyConfigs}/>
             {property.tags && Array.isArray(property.tags) && <Tags tags={property.tags}/>}
 						{property.quality && Array.isArray(property.quality) && property.quality.map((qualityCheck, qIdx) => {
-							const QualityIcon = getQualityCheckIcon(qualityCheck.type);
+							const QualityIcon = getQualityCheckIcon(qualityCheck);
 							const tooltipContent = (
 								<div className="space-y-1">
 									{qualityCheck.description && <div>{qualityCheck.description}</div>}
@@ -309,7 +309,7 @@ const SchemaTable = memo(({ schemaName, schema }) => {
 							{schema && schema.quality && schema.quality.length > 0 && (
 								<div className="mt-2">
 									{schema.quality.map((qualityCheck, idx) => {
-										const QualityIcon = getQualityCheckIcon(qualityCheck.type);
+										const QualityIcon = getQualityCheckIcon(qualityCheck);
 										const tooltipContent = (
 											<div className="space-y-1">
 												{qualityCheck.description && <div>{qualityCheck.description}</div>}
