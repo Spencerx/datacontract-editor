@@ -76,7 +76,11 @@ export default defineConfig(({ mode }) => ({
         },
         // Split Monaco into its own chunk for stable caching
         manualChunks: {
-          monaco: ['monaco-editor', '@monaco-editor/react', 'monaco-yaml']
+          monaco: [
+            'monaco-editor/esm/vs/editor/edcore.main.js',
+            '@monaco-editor/react',
+            'monaco-yaml',
+          ]
         },
         // Use version-based names for Monaco chunk, hash for others
         chunkFileNames: (chunkInfo) => {
@@ -97,7 +101,7 @@ export default defineConfig(({ mode }) => ({
   },
   optimizeDeps: {
     include: [
-      'monaco-editor',
+      'monaco-editor/esm/vs/editor/edcore.main.js',
       'monaco-yaml'
     ]
   }
