@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route } from 'react-router';
 import { useRef, useState } from 'react';
 import { YamlEditor, DataContractPreview, TestResultsPanel } from "../components/features/index.js";
 import WarningsPanel from "../components/features/WarningsPanel.jsx";

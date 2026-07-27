@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { ServerEditor } from '../components/features/index.js';
 
 const Server = () => {
