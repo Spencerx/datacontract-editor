@@ -18,7 +18,7 @@ import './DiagramStyles.css';
 import { stringifyYaml, parseYaml } from '../../utils/yaml.js';
 import { useEditorStore } from '../../store.js';
 import SchemaNode from './SchemaNode.jsx';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router';
 import { getLayoutedElements, getGridPosition, buildReferencedByName } from './layoutUtils.js';
 import PropertyDetailsDrawer from '../ui/PropertyDetailsDrawer.jsx';
 import RelationshipDetailsDrawer from '../ui/RelationshipDetailsDrawer.jsx';

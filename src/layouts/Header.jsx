@@ -1,6 +1,6 @@
 import {useState} from 'react';
 import {useTranslation} from 'react-i18next';
-import {useNavigate, useLocation} from 'react-router-dom';
+import {useNavigate, useLocation} from 'react-router';
 import {useEditorStore, getFileStorageBackend, initialYaml} from "../store.js";
 import {stringifyYaml, parseYaml} from '../utils/yaml.js';
 import {Menu, MenuButton, MenuItem, MenuItems} from '@headlessui/react';

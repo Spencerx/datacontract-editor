@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Header, SidebarNavigation, MainContent } from './layouts/index.js';
-import { HashRouter } from 'react-router-dom'
+import { HashRouter } from 'react-router'
 import { useEditorStore, setFileStorageBackend, setEditorConfig } from './store.js';
 import { LocalFileStorageBackend } from './services/LocalFileStorageBackend.js';
 import { ToastContainer } from './components/ui/Toast.jsx';

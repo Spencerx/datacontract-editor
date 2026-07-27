@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router';
 import Editor, { DiffEditor } from '@monaco-editor/react';
 import { configureMonacoYaml } from 'monaco-yaml';
 import { useEditorStore } from '../../../store.js';
