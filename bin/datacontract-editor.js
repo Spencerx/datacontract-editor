@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 import { createServer } from 'http';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { join, extname, resolve, basename, sep } from 'path';
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'fs';
+import { join, extname, resolve, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
 
@@ -127,22 +127,38 @@ function sendJson(res, statusCode, data) {
   res.end(JSON.stringify(data));
 }
 
-// Resolve a request path against dist/ and return it only if it stays inside.
-// Returns null for traversal attempts and malformed percent-encoding.
-function resolveWithinDist(url) {
-  let decoded;
-  try {
-    decoded = decodeURIComponent(url);
-  } catch {
-    return null; // malformed percent-encoding
+// Index every file under dist/ once at startup, keyed by the URL path it is
+// served at. Requests then only ever look up a key in this map: the paths handed
+// to the filesystem come from readdirSync, never from the request, so a request
+// path cannot address a file outside dist/ no matter how it is encoded.
+function indexDistFiles(dir, urlPrefix = '') {
+  const files = new Map();
+
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const urlPath = `${urlPrefix}/${entry.name}`;
+    if (entry.isDirectory()) {
+      for (const [key, value] of indexDistFiles(join(dir, entry.name), urlPath)) {
+        files.set(key, value);
+      }
+    } else if (entry.isFile()) {
+      files.set(urlPath, join(dir, entry.name));
+    }
   }
 
-  if (decoded.includes('\0')) return null;
+  return files;
+}
 
-  const candidate = resolve(distDir, '.' + (decoded.startsWith('/') ? decoded : '/' + decoded));
-  if (candidate !== distDir && !candidate.startsWith(distDir + sep)) return null;
+// dist/ is a build artifact and does not change while the server runs.
+const distFiles = indexDistFiles(distDir);
 
-  return candidate;
+// Turn a request path into a lookup key. Returns null when the percent-encoding
+// is malformed, which simply means no file will match.
+function toLookupKey(url) {
+  try {
+    return decodeURIComponent(url);
+  } catch {
+    return null;
+  }
 }
 
 // The server is only ever meant to be reached by a browser on this machine.
@@ -329,27 +345,11 @@ const server = createServer(async (req, res) => {
     url = '/index.html';
   }
 
-  // Resolve the request path inside dist/ and refuse anything that escapes it.
-  // req.url is attacker-controlled and is not normalized by Node, so a client
-  // that does not collapse '..' itself (curl --path-as-is) could otherwise read
-  // any file on the machine.
-  const safePath = resolveWithinDist(url);
-  if (!safePath) {
-    res.writeHead(403);
-    res.end('Forbidden');
-    return;
-  }
+  // Serve a known file from dist/, or fall back to index.html for SPA routes
+  const lookupKey = toLookupKey(url);
+  const filePath = lookupKey === null ? undefined : distFiles.get(lookupKey);
 
-  let filePath = safePath;
-  const ext = extname(filePath).toLowerCase();
-
-  // If no extension, serve index.html (SPA routing)
-  if (!ext && !existsSync(filePath)) {
-    filePath = indexPath;
-  }
-
-  // Try to serve the file
-  if (existsSync(filePath)) {
+  if (filePath) {
     try {
       const content = readFileSync(filePath);
       const contentType = mimeTypes[extname(filePath).toLowerCase()] || 'application/octet-stream';
