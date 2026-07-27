@@ -92,12 +92,10 @@ docker run -d -p 4173:4173 \
 
 ### Data Contract CLI
 
-Coming soon!
-
 You can start the editor from the Data Contract CLI:
 
 ```
-datacontract editor datacontract.yaml
+datacontract edit datacontract.yaml
 ```
 
 
