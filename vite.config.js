@@ -60,7 +60,7 @@ export default defineConfig(({ mode }) => ({
     // Enable sourcemaps in debug mode
     sourcemap: mode === 'debug' ? true : false,
     // Disable minification in debug mode for easier debugging
-    minify: mode === 'debug' ? false : 'esbuild',
+    minify: mode === 'debug' ? false : 'oxc',
     lib: {
       entry: resolve(__dirname, 'src/embed.jsx'),
       name: 'DataContractEditor',
@@ -75,12 +75,10 @@ export default defineConfig(({ mode }) => ({
           return assetInfo.name;
         },
         // Split Monaco into its own chunk for stable caching
-        manualChunks: {
-          monaco: [
-            'monaco-editor/esm/vs/editor/edcore.main.js',
-            '@monaco-editor/react',
-            'monaco-yaml',
-          ]
+        manualChunks: (id) => {
+          if (/node_modules\/(monaco-editor|@monaco-editor|monaco-yaml|vscode-|yaml-language-server|jsonc-parser)/.test(id)) {
+            return 'monaco';
+          }
         },
         // Use version-based names for Monaco chunk, hash for others
         chunkFileNames: (chunkInfo) => {
