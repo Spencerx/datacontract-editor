@@ -2,7 +2,7 @@
 
 import { createServer } from 'http';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { join, extname, resolve, basename } from 'path';
+import { join, extname, resolve, basename, sep } from 'path';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
 
@@ -111,7 +111,7 @@ async function findPort(start = 9090) {
 
   return new Promise((resolve) => {
     const server = net.createServer();
-    server.listen(start, () => {
+    server.listen(start, '127.0.0.1', () => {
       const port = server.address().port;
       server.close(() => resolve(port));
     });
@@ -123,11 +123,34 @@ async function findPort(start = 9090) {
 
 // Helper to send JSON response
 function sendJson(res, statusCode, data) {
-  res.writeHead(statusCode, {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*'
-  });
+  res.writeHead(statusCode, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify(data));
+}
+
+// Resolve a request path against dist/ and return it only if it stays inside.
+// Returns null for traversal attempts and malformed percent-encoding.
+function resolveWithinDist(url) {
+  let decoded;
+  try {
+    decoded = decodeURIComponent(url);
+  } catch {
+    return null; // malformed percent-encoding
+  }
+
+  if (decoded.includes('\0')) return null;
+
+  const candidate = resolve(distDir, '.' + (decoded.startsWith('/') ? decoded : '/' + decoded));
+  if (candidate !== distDir && !candidate.startsWith(distDir + sep)) return null;
+
+  return candidate;
+}
+
+// The server is only ever meant to be reached by a browser on this machine.
+// Requiring a loopback Host blocks DNS rebinding, where a page on an attacker
+// domain resolves that domain to 127.0.0.1 and then talks to us same-origin.
+function isLocalRequest(req) {
+  const host = (req.headers.host || '').replace(/:\d+$/, '').replace(/^\[|\]$/g, '');
+  return host === 'localhost' || host === '127.0.0.1' || host === '::1';
 }
 
 // Helper to read request body
@@ -144,6 +167,13 @@ function readBody(req) {
 function generateCliIndexHtml() {
   const baseHtml = readFileSync(indexPath, 'utf-8');
 
+  // The filename comes from argv and can contain quotes or '</script>', so every
+  // injection point below goes through JSON.stringify rather than raw
+  // interpolation. encodeURIComponent alone is not enough: it leaves apostrophes
+  // untouched, which is enough to break out of a single-quoted string literal.
+  const fileUrl = JSON.stringify('/api/files/' + encodeURIComponent(targetFileName));
+  const fileNameLiteral = JSON.stringify(targetFileName);
+
   // Replace the init call with CLI-specific configuration
   const cliInitScript = `
       import { init } from './datacontract-editor.es.js';
@@ -152,7 +182,7 @@ function generateCliIndexHtml() {
       async function initCli() {
         try {
           // Fetch the file content from CLI server
-          const response = await fetch('/api/files/${encodeURIComponent(targetFileName)}');
+          const response = await fetch(${fileUrl});
           if (!response.ok) {
             throw new Error('Failed to load file: ' + response.statusText);
           }
@@ -165,7 +195,7 @@ function generateCliIndexHtml() {
             persistence: 'none',
             initialView: 'form',
             onSave: async (yamlContent) => {
-              const saveResponse = await fetch('/api/files/${encodeURIComponent(targetFileName)}', {
+              const saveResponse = await fetch(${fileUrl}, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'text/yaml' },
                 body: yamlContent
@@ -177,7 +207,7 @@ function generateCliIndexHtml() {
             }
           });
 
-          console.log('CLI mode: Loaded ${targetFileName}');
+          console.log('CLI mode: Loaded ' + ${fileNameLiteral});
         } catch (error) {
           console.error('Failed to initialize CLI mode:', error);
           alert('Failed to load file: ' + error.message);
@@ -201,13 +231,17 @@ const server = createServer(async (req, res) => {
   let url = req.url.split('?')[0]; // Remove query string
   const method = req.method;
 
-  // Handle CORS preflight
+  if (!isLocalRequest(req)) {
+    res.writeHead(403);
+    res.end('Forbidden');
+    return;
+  }
+
+  // The editor is served from this same origin, so it never needs CORS. Not
+  // answering preflights is what stops another site from PUTing over the file
+  // being edited.
   if (method === 'OPTIONS') {
-    res.writeHead(204, {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, PUT, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type'
-    });
+    res.writeHead(204);
     res.end();
     return;
   }
@@ -264,10 +298,7 @@ const server = createServer(async (req, res) => {
       if (method === 'GET') {
         try {
           const content = readFileSync(targetFilePath, 'utf-8');
-          res.writeHead(200, {
-            'Content-Type': 'text/yaml',
-            'Access-Control-Allow-Origin': '*'
-          });
+          res.writeHead(200, { 'Content-Type': 'text/yaml' });
           res.end(content);
         } catch (err) {
           sendJson(res, 500, { error: 'Failed to read file', details: err.message });
@@ -298,7 +329,18 @@ const server = createServer(async (req, res) => {
     url = '/index.html';
   }
 
-  let filePath = join(distDir, url);
+  // Resolve the request path inside dist/ and refuse anything that escapes it.
+  // req.url is attacker-controlled and is not normalized by Node, so a client
+  // that does not collapse '..' itself (curl --path-as-is) could otherwise read
+  // any file on the machine.
+  const safePath = resolveWithinDist(url);
+  if (!safePath) {
+    res.writeHead(403);
+    res.end('Forbidden');
+    return;
+  }
+
+  let filePath = safePath;
   const ext = extname(filePath).toLowerCase();
 
   // If no extension, serve index.html (SPA routing)
@@ -335,7 +377,9 @@ async function start() {
   const port = requestedPort || await findPort(9090);
   const url = `http://localhost:${port}`;
 
-  server.listen(port, async () => {
+  // Bind to loopback only: this server exposes local files and has no auth,
+  // so it must not be reachable from the network.
+  server.listen(port, '127.0.0.1', async () => {
     console.log(`
   datacontract-editor v${pkg.version}
 
