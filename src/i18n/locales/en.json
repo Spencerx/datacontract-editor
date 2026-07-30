@@ -647,6 +647,56 @@
     "cancel": "Cancel",
     "open": "Open"
   },
+  "browsePanel": {
+    "semantics": {
+      "title": "Semantics"
+    },
+    "dataProducts": {
+      "title": "Data Products",
+      "empty": "No data products found",
+      "upstream": "Upstream",
+      "all": "All data products",
+      "noContracts": "No data contracts"
+    },
+    "kind": {
+      "product": "Data Product",
+      "contract": "Output Port",
+      "schema": "Table",
+      "property": "Property"
+    },
+    "semanticKind": {
+      "namespace": "Namespace",
+      "group": "Group",
+      "entity": "Concept",
+      "property": "Property",
+      "shared_property": "Shared Property",
+      "metric": "Metric"
+    },
+    "openDetails": "Open details page",
+    "tooltip": {
+      "dataContract": "Data Contract",
+      "id": "ID",
+      "version": "Version",
+      "type": "Type",
+      "physicalName": "Physical name",
+      "required": "Required",
+      "yes": "yes",
+      "classification": "Classification",
+      "examples": "Examples",
+      "businessName": "Business name"
+    },
+    "linkedTo": "Linked in data contract: {{properties}}",
+    "search": "Search...",
+    "loading": "Loading...",
+    "empty": "No elements found",
+    "noMatches": "No matching elements",
+    "dragToSchemaHint": "Drag onto a schema to add, or onto a property to link it",
+    "formHint": "Drag elements into the schema to add them, or onto a property to link it.",
+    "openSchemaHint": "Open a schema to add properties",
+    "expand": "Show browser",
+    "collapse": "Collapse panel",
+    "close": "Close panel"
+  },
   "definitionSelect": {
     "title": "Find Element",
     "subtitle": "Browse semantic elements and business definitions",
@@ -974,7 +1024,7 @@
     "properties": {
       "heading": "Properties",
       "addFromSemantics": "Add from Semantics",
-      "addProperty": "Add property",
+        "addProperty": "Add property",
       "empty": "No properties defined",
       "addSubProperty": "Add sub-property",
       "addToItems": "Add property to items",

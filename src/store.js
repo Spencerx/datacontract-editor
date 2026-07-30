@@ -7,6 +7,7 @@ import { DEFAULT_AI_CONFIG, DEFAULT_TESTS_CONFIG } from './config/defaults.js';
 import { getStorageConfig } from './utils/persistence.js';
 import { isSafeKey } from './utils/safeProperty.js';
 import { createAuthoritativeDefinitionsSlice, initialAuthoritativeDefinitionsState } from './lib/authoritativeDefinitionsSlice.js';
+import { createBrowsePanelSlice } from './components/browse/browsePanelSlice.js';
 
 // Storage backend instance - can be set via setFileStorageBackend
 let fileStorageBackend = new LocalFileStorageBackend();
@@ -414,6 +415,7 @@ export function defaultStoreConfig(set, get) {
 			tests: DEFAULT_TESTS_CONFIG,
 			ai: DEFAULT_AI_CONFIG,
 			semantics: null, // { baseUrl, pageParam, queryParam, definitionAcceptHeader, batchResolveUrl } for the semantic ontology tree API; when semantics.batchResolveUrl is set, authoritativeDefinitions are batch-fetched on load
+			dataProducts: null, // { upstreamUrl, productsUrl, contractsBaseUrl } for the data products browse panel
       managedTags: [], // [{tag: 'tag1', href: 'https://...'}, ...]
       allowUnmanagedTags: true,
 			customizations: null, // See CUSTOMIZATION.md for documentation
@@ -424,6 +426,7 @@ export function defaultStoreConfig(set, get) {
 		pendingAiChange: null, // { updatedYaml, summary, validationErrors, isValid }
 		lastAppliedAiChange: null, // { originalYaml, summary } - for unapply
 		...authoritativeDefinitionsSlice,
+		...createBrowsePanelSlice(set),
 		...actions,
 	};
 }

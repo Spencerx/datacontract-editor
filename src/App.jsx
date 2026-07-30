@@ -7,6 +7,9 @@ import { LocalFileStorageBackend } from './services/LocalFileStorageBackend.js';
 import { ToastContainer } from './components/ui/Toast.jsx';
 import { ErrorBoundary } from './components/error/index.js';
 import { AiFloatingActionButton, AiSidebar } from './ai/index.js';
+import EditorDndProvider from './components/browse/EditorDnd.jsx';
+import BrowseEdgeTab from './components/browse/BrowseEdgeTab.jsx';
+import BrowsePanel from './components/browse/BrowsePanel.jsx';
 
 /**
  * Main App component for the Data Contract Editor
@@ -108,17 +111,25 @@ function App({ storageBackend = null, editorConfig = null }) {
                         <div className="flex flex-col flex-1 min-w-0 h-full">
                             <Header/>
                             <main className="flex flex-row w-full bg-white flex-1 overflow-hidden min-w-0">
-                                {currentView === 'form' && !yamlParseError && (
-                                    <>
-                                        {/* Desktop sidebar - hidden on mobile */}
-                                        <div className="hidden md:block">
-                                            <SidebarNavigation/>
-                                        </div>
-                                        {/* Mobile sidebar overlay */}
-                                        <SidebarNavigation isMobile={true}/>
-                                    </>
-                                )}
-                                <MainContent/>
+                                <EditorDndProvider>
+                                    {currentView === 'form' && !yamlParseError && (
+                                        <>
+                                            {/* Desktop sidebar - hidden on mobile */}
+                                            <div className="hidden md:block">
+                                                <SidebarNavigation/>
+                                            </div>
+                                            {/* Mobile sidebar overlay */}
+                                            <SidebarNavigation isMobile={true}/>
+                                        </>
+                                    )}
+                                    {/* Browse edge tab + tabbed panel (semantics, data products) —
+                                        between the section nav and the content so the nav stays
+                                        anchored; self-gated to the schema form page and the
+                                        diagram view */}
+                                    <BrowseEdgeTab/>
+                                    <BrowsePanel/>
+                                    <MainContent/>
+                                </EditorDndProvider>
                             </main>
                         </div>
                         {/* AI Panel - full height sidebar on far right */}

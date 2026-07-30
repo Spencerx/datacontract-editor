@@ -647,6 +647,56 @@
     "cancel": "Abbrechen",
     "open": "Öffnen"
   },
+  "browsePanel": {
+    "semantics": {
+      "title": "Semantik"
+    },
+    "dataProducts": {
+      "title": "Datenprodukte",
+      "empty": "Keine Datenprodukte gefunden",
+      "upstream": "Upstream",
+      "all": "Alle Datenprodukte",
+      "noContracts": "Keine Data Contracts"
+    },
+    "kind": {
+      "product": "Datenprodukt",
+      "contract": "Output Port",
+      "schema": "Tabelle",
+      "property": "Eigenschaft"
+    },
+    "semanticKind": {
+      "namespace": "Namespace",
+      "group": "Gruppe",
+      "entity": "Konzept",
+      "property": "Eigenschaft",
+      "shared_property": "Geteilte Eigenschaft",
+      "metric": "Metrik"
+    },
+    "openDetails": "Detailseite öffnen",
+    "tooltip": {
+      "dataContract": "Data Contract",
+      "id": "ID",
+      "version": "Version",
+      "type": "Typ",
+      "physicalName": "Physischer Name",
+      "required": "Pflichtfeld",
+      "yes": "ja",
+      "classification": "Klassifizierung",
+      "examples": "Beispiele",
+      "businessName": "Business Name"
+    },
+    "linkedTo": "Verknüpft im Data Contract: {{properties}}",
+    "search": "Suchen...",
+    "loading": "Wird geladen...",
+    "empty": "Keine Elemente gefunden",
+    "noMatches": "Keine passenden Elemente",
+    "dragToSchemaHint": "Ziehe auf ein Schema zum Hinzufügen oder auf eine Eigenschaft zum Verknüpfen",
+    "formHint": "Ziehe Elemente in das Schema zum Hinzufügen oder auf eine Eigenschaft zum Verknüpfen.",
+    "openSchemaHint": "Öffne ein Schema, um Eigenschaften hinzuzufügen",
+    "expand": "Browser anzeigen",
+    "collapse": "Panel einklappen",
+    "close": "Panel schließen"
+  },
   "definitionSelect": {
     "title": "Element finden",
     "subtitle": "Semantische Elemente und Business Definitions durchsuchen",

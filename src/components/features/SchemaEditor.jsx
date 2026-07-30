@@ -2,7 +2,6 @@ import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useTranslation} from 'react-i18next';
 import {useEditorStore} from '../../store.js';
 import {isSafeKey} from '../../utils/safeProperty.js';
-import {resolveAuthDefType} from '../../utils/authDefTypes.js';
 import {Tooltip} from '../ui/index.js';
 import {getSchemaEnumValues} from '../../lib/schemaEnumExtractor.js';
 import TagsInput from '../ui/TagsInput.jsx';
@@ -22,27 +21,19 @@ import {useSchemaOperations} from './schema/useSchemaOperations.js';
 import {useCustomization, useIsPropertyHidden, useStandardPropertyOverride, convertEnumToOptions} from '../../hooks/useCustomization.js';
 import {useInheritedDefinition} from '../../hooks/useInheritedDefinition.js';
 import {CustomSections, UngroupedCustomProperties} from '../ui/CustomSection.jsx';
-import {DefinitionSelectionModal} from '../ui/DefinitionSelectionModal.jsx';
-import {
-	DndContext,
-	closestCenter,
-	KeyboardSensor,
-	PointerSensor,
-	useSensor,
-	useSensors,
-} from '@dnd-kit/core';
+import {useDroppable} from '@dnd-kit/core';
 import {
 	SortableContext,
-	sortableKeyboardCoordinates,
 	verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import {restrictToVerticalAxis, restrictToParentElement} from '@dnd-kit/modifiers';
+import {useBrowseDropIndicator} from '../browse/browseDropContext.js';
+import {buildPropertyPath} from '../../utils/schemaPathBuilder.js';
 
 const SchemaEditor = ({schemaIndex}) => {
 	const {t} = useTranslation();
 	const jsonSchema = useEditorStore((state) => state.schemaData);
-	const yamlParts = useEditorStore((state) => state.yamlParts);
 	const editorConfig = useEditorStore((state) => state.editorConfig);
+	const yamlParts = useEditorStore((state) => state.yamlParts);
 	const removeValue = useEditorStore((state) => state.removeValue);
 	const {
 		schema,
@@ -52,37 +43,28 @@ const SchemaEditor = ({schemaIndex}) => {
 		handleSaveAndAddNext,
 		updateProperty,
 		removeProperty,
-		addSubProperty,
-		reorderProperty
+		addSubProperty
 	} = useSchemaOperations(schemaIndex);
 	const [expandedProperties, setExpandedProperties] = useState(new Set()); // Track expanded property paths for nested items
-	const [isDefinitionModalOpen, setIsDefinitionModalOpen] = useState(false);
+	const isBrowsePanelOpen = useEditorStore((state) => state.isBrowsePanelOpen);
+	const openBrowsePanel = useEditorStore((state) => state.openBrowsePanel);
 
-	// Drag-and-drop sensors configuration
-	const sensors = useSensors(
-		useSensor(PointerSensor, {
-			activationConstraint: {
-				distance: 8, // 8px threshold prevents accidental drags
-			},
-		}),
-		useSensor(KeyboardSensor, {
-			coordinateGetter: sortableKeyboardCoordinates,
-		})
-	);
+	// Drag-and-drop is orchestrated by the app-level EditorDndProvider (see
+	// components/browse/EditorDnd.jsx): it handles both row reordering and
+	// drops from the browse panel. This component only registers the sortable
+	// rows and the list drop target.
+	const propertiesCount = schema?.[schemaIndex]?.properties?.length || 0;
+	const {setNodeRef: setPropertiesDropRef} = useDroppable({
+		id: `props-list-${schemaIndex}`,
+		data: {schemaIndex, propsCount: propertiesCount},
+	});
 
-	// Handle drag end for property reordering
-	const handleDragEnd = useCallback((event) => {
-		const {active, over} = event;
-		if (!over || active.id === over.id) return;
-
-		// Extract indices from IDs (format: "prop-{index}")
-		const fromIndex = parseInt(active.id.toString().replace('prop-', ''), 10);
-		const toIndex = parseInt(over.id.toString().replace('prop-', ''), 10);
-
-		if (!isNaN(fromIndex) && !isNaN(toIndex)) {
-			reorderProperty([], fromIndex, toIndex);
-		}
-	}, [reorderProperty]);
+	// Insertion point of an active browse drag, for the drop indicator line
+	// (link-mode hovering is rendered by the row itself)
+	const dropIndicator = useBrowseDropIndicator();
+	const indicatorIndex = dropIndicator?.schemaIndex === schemaIndex && dropIndicator.mode === 'insert'
+		? dropIndicator.index
+		: null;
 
 	// Get customization config for schema level
 	const {customProperties: customPropertyConfigs, customSections} = useCustomization('schema');
@@ -329,8 +311,10 @@ const SchemaEditor = ({schemaIndex}) => {
 			// Check if click is inside a dialog/modal (Headless UI adds data-headlessui-state)
 			const isInsideDialog = event.target.closest('[role="dialog"]') ||
 				event.target.closest('[data-headlessui-state]');
+			// Clicks (and drag starts) in the browse panel must not close the drawer
+			const isInsideBrowsePanel = !!event.target.closest('[data-browse-panel]');
 
-			if (!isInsideProperties && !isInsideDrawer && !isInsideDialog) {
+			if (!isInsideProperties && !isInsideDrawer && !isInsideDialog && !isInsideBrowsePanel) {
 				setSelectedProperty(null);
 				setSelectedPropertyPath(null);
 			}
@@ -410,21 +394,7 @@ const SchemaEditor = ({schemaIndex}) => {
 	// Handle property selection for drawer
 	const handleSelectProperty = useCallback((propPath, property, definition) => {
 		// Build proper path string for PropertyDetailsDrawer
-		let pathStr = `schema[${schemaIndex}].properties`;
-
-		for (let i = 0; i < propPath.length; i++) {
-			if (propPath[i] === 'items') {
-				pathStr += '.items';
-				if (i < propPath.length - 1) {
-					pathStr += '.properties';
-				}
-			} else {
-				pathStr += `[${propPath[i]}]`;
-				if (i < propPath.length - 1 && propPath[i + 1] !== 'items') {
-					pathStr += '.properties';
-				}
-			}
-		}
+		const pathStr = buildPropertyPath(schemaIndex, propPath);
 
 		setSelectedPropertyPath(pathStr);
 		setSelectedProperty({
@@ -452,29 +422,6 @@ const SchemaEditor = ({schemaIndex}) => {
 		setSelectedProperty(null);
 		setSelectedPropertyPath(null);
 	}, []);
-
-	// Add property from a selected definition
-	// Only sets name and definition link - other values are inherited from the definition
-	const addPropertyFromDefinition = useCallback((definition) => {
-		try {
-			if (!schema || !schema[schemaIndex]) {
-				console.warn('Schema at index not found:', schemaIndex);
-				return;
-			}
-			console.log('Definition selected: ', definition);
-
-			const currentProperties = schema[schemaIndex].properties || [];
-			const newProperty = {
-				name: definition.businessName || definition.name?.split('/').pop() || '',
-				authoritativeDefinitions: [{type: resolveAuthDefType(definition), url: definition.url}],
-			};
-
-			setValue(`schema[${schemaIndex}].properties`, [...currentProperties, newProperty]);
-			setIsDefinitionModalOpen(false);
-		} catch (error) {
-			console.error('Error adding property from definition:', error);
-		}
-	}, [schema, schemaIndex, setValue]);
 
 	return (
 		<div className="h-full flex flex-col bg-white">
@@ -775,9 +722,9 @@ const SchemaEditor = ({schemaIndex}) => {
 											className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-200 rounded-t-md">
 											<span className="text-sm font-medium text-gray-700">{t('schema.properties.heading')}</span>
 											<div className="flex items-center gap-2">
-												{editorConfig?.semantics?.baseUrl && (
+												{editorConfig?.semantics?.baseUrl && !isBrowsePanelOpen && (
 													<button
-														onClick={() => setIsDefinitionModalOpen(true)}
+														onClick={() => openBrowsePanel('semantics')}
 														className="rounded-sm bg-white px-2 py-1 text-xs font-semibold text-gray-900 shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50"
 														title={t('schema.properties.addFromSemantics')}
 													>
@@ -798,49 +745,47 @@ const SchemaEditor = ({schemaIndex}) => {
 											</div>
 										</div>
 
-										{/* Properties List with Drag-and-Drop */}
+										{/* Properties List with Drag-and-Drop (DndContext provided app-level by EditorDndProvider) */}
 										{schema[schemaIndex].properties && schema[schemaIndex].properties.length > 0 ? (
-											<DndContext
-												sensors={sensors}
-												collisionDetection={closestCenter}
-												onDragEnd={handleDragEnd}
-												modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+											<SortableContext
+												items={schema[schemaIndex].properties.map((_, idx) => `prop-${schemaIndex}-${idx}`)}
+												strategy={verticalListSortingStrategy}
 											>
-												<SortableContext
-													items={schema[schemaIndex].properties.map((_, idx) => `prop-${idx}`)}
-													strategy={verticalListSortingStrategy}
-												>
-													<div className="rounded-b-md">
-														{schema[schemaIndex].properties.map((property, propIndex) => (
-															<PropertyRow
-																key={`prop-${propIndex}`}
-																property={property}
-																propIndex={propIndex}
-																schemaIdx={schemaIndex}
-																depth={0}
-																propPath={[]}
-																togglePropertyExpansion={togglePropertyExpansion}
-																updateProperty={updateProperty}
-																addSubProperty={addSubProperty}
-																removeProperty={removeProperty}
-																expandedProperties={expandedProperties}
-																onSelectProperty={handleSelectProperty}
-																selectedPropertyPath={selectedPropertyPath}
-																totalPropertiesCount={schema[schemaIndex].properties.length}
-																onSaveAndAddNext={handleSaveAndAddNextWrapper}
-																autoEditNewProperty={autoEditPropertyIndex === propIndex}
-																setValue={setValue}
-																onAutoEditComplete={() => setAutoEditPropertyIndex(null)}
-																sortableId={`prop-${propIndex}`}
-																isDragEnabled={true}
-															/>
-														))}
-													</div>
-												</SortableContext>
-											</DndContext>
+												<div className="rounded-b-md" ref={setPropertiesDropRef}>
+													{schema[schemaIndex].properties.map((property, propIndex) => (
+														<PropertyRow
+															key={`prop-${propIndex}`}
+															property={property}
+															propIndex={propIndex}
+															schemaIdx={schemaIndex}
+															depth={0}
+															propPath={[]}
+															togglePropertyExpansion={togglePropertyExpansion}
+															updateProperty={updateProperty}
+															addSubProperty={addSubProperty}
+															removeProperty={removeProperty}
+															expandedProperties={expandedProperties}
+															onSelectProperty={handleSelectProperty}
+															selectedPropertyPath={selectedPropertyPath}
+															totalPropertiesCount={schema[schemaIndex].properties.length}
+															onSaveAndAddNext={handleSaveAndAddNextWrapper}
+															autoEditNewProperty={autoEditPropertyIndex === propIndex}
+															setValue={setValue}
+															onAutoEditComplete={() => setAutoEditPropertyIndex(null)}
+															sortableId={`prop-${schemaIndex}-${propIndex}`}
+															isDragEnabled={true}
+														/>
+													))}
+													{/* Drop indicator after the last row */}
+													{indicatorIndex === propertiesCount && (
+														<div className="h-0.5 bg-indigo-500 relative z-10"/>
+													)}
+												</div>
+											</SortableContext>
 										) : (
 											<div
-												className="px-4 py-8 text-center rounded-b-md cursor-pointer hover:bg-gray-50"
+												ref={setPropertiesDropRef}
+												className={`px-4 py-8 text-center rounded-b-md cursor-pointer hover:bg-gray-50 ${indicatorIndex != null ? 'ring-2 ring-inset ring-indigo-400 bg-indigo-50' : ''}`}
 												onClick={() => addProperty()}
 											>
 												<p className="text-sm text-gray-400 mb-2">{t('schema.properties.empty')}</p>
@@ -882,12 +827,6 @@ const SchemaEditor = ({schemaIndex}) => {
 				propertyPath={selectedPropertyPath}
 			/>
 
-			{/* Definition Selection Modal */}
-			<DefinitionSelectionModal
-				isOpen={isDefinitionModalOpen}
-				onClose={() => setIsDefinitionModalOpen(false)}
-				onSelect={addPropertyFromDefinition}
-			/>
 		</div>
 	);
 };

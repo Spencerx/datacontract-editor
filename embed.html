@@ -312,6 +312,15 @@ servers:
 						definitionAcceptHeader: "application/json"
         },
 
+        // Data products browse panel (upstream + all products, lazy contracts)
+        dataProducts: {
+            upstreamUrl: "/embed/upstream-data-products.json",
+            productsUrl: "/embed/data-products.json",
+            contractsBaseUrl: "/embed/data-products",
+            productDetailsUrlTemplate: "/embed/dataproducts/{externalId}",
+            contractDetailsUrlTemplate: "/embed/datacontracts/{externalId}"
+        },
+
         // Test configuration
         tests: {
             enabled: false,

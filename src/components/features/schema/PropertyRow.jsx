@@ -12,6 +12,11 @@ import {toAbsoluteUrl} from "../../../lib/urlUtils.js";
 import DefinitionIcon from "../../ui/icons/DefinitionIcon.jsx";
 import {useDefinition} from '../../../hooks/useDefinition.js';
 import {isSemanticAuthDef} from '../../../utils/authDefTypes.js';
+import {useEditorStore} from '../../../store.js';
+import {useInsertFlash} from '../../browse/useInsertFlash.js';
+import {propertyLinkIdentity, propertyMatchesLink} from '../../browse/useContractLinks.js';
+import {useBrowseDropIndicator} from '../../browse/browseDropContext.js';
+import {buildPropertyPath} from '../../../utils/schemaPathBuilder.js';
 
 /**
  * Recursive component to render a property and its sub-properties
@@ -129,7 +134,29 @@ const PropertyRow = ({
 	const isArray = effectiveLogicalType === 'array';
 	const hasSubProperties = property.properties && property.properties.length > 0;
 	const hasItems = property.items;
-	const isSelected = selectedPropertyPath === currentPath.join('-');
+	const isSelected = selectedPropertyPath === buildPropertyPath(schemaIdx, currentPath);
+
+	// Drop feedback for drags coming from the browse panel (top-level rows
+	// only): an insertion line above the row, or a ring when hovering the
+	// row's middle to link onto this existing property.
+	const dropIndicator = useBrowseDropIndicator();
+	const indicatorMatches = depth === 0
+		&& dropIndicator?.schemaIndex === schemaIdx
+		&& dropIndicator.index === propIndex;
+	const showDropIndicator = indicatorMatches && dropIndicator.mode === 'insert';
+	const isLinkTarget = indicatorMatches && dropIndicator.mode === 'link';
+
+	// When this row was just inserted from the browse panel, scroll it into
+	// view and flash it — otherwise a + click that appends below the fold
+	// gives no visible feedback.
+	const rowRef = useRef(null);
+	const isFlashing = useInsertFlash(schemaIdx, propIndex, { enabled: depth === 0, scrollRef: rowRef });
+
+	// Cross-highlight: hovering a linked element in the browse panel
+	// highlights its counterpart rows here.
+	const hoveredContractLink = useEditorStore((state) => state.hoveredContractLink);
+	const isHoverHighlighted = propertyMatchesLink(property, hoveredContractLink);
+	const setHoveredSchemaProperty = useEditorStore((state) => state.setHoveredSchemaProperty);
 
 	const handleSelect = (e) => {
 		e.stopPropagation();
@@ -138,11 +165,17 @@ const PropertyRow = ({
 
 	return (
 		<>
+			{showDropIndicator && <div className="h-0.5 bg-indigo-500 relative z-10"/>}
 			<div
-				ref={isDragEnabled ? setNodeRef : undefined}
-				className={`border-t border-gray-100 group cursor-pointer ${isSelected ? 'bg-indigo-50 hover:bg-indigo-100 ring-1 ring-inset ring-indigo-200' : 'hover:bg-gray-50'} ${isDragging ? 'shadow-lg bg-white' : ''}`}
+				ref={(el) => {
+					rowRef.current = el;
+					if (isDragEnabled) setNodeRef(el);
+				}}
+				className={`border-t border-gray-100 group cursor-pointer transition-colors duration-700 ${isLinkTarget ? 'bg-indigo-50 ring-2 ring-inset ring-indigo-400' : isFlashing ? 'bg-indigo-100' : isHoverHighlighted ? 'bg-blue-50 ring-1 ring-inset ring-blue-300' : isSelected ? 'bg-indigo-50 hover:bg-indigo-100 ring-1 ring-inset ring-indigo-200' : 'hover:bg-gray-50'} ${isDragging ? 'shadow-lg bg-white' : ''}`}
 				style={{paddingLeft: `${depth * 1.5}rem`, ...sortableStyle}}
 				onClick={handleSelect}
+				onMouseEnter={() => setHoveredSchemaProperty(propertyLinkIdentity(property))}
+				onMouseLeave={() => setHoveredSchemaProperty(null)}
 			>
 				{/* Main row with name, type, description */}
 				<div className="flex items-center justify-between px-2 pr-2 py-1.5">

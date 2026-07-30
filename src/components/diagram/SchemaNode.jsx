@@ -1,4 +1,4 @@
-import { memo, useState, useEffect, useRef, Fragment, useCallback } from 'react';
+import { memo, useState, useEffect, useRef, Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Handle, Position, NodeToolbar, useReactFlow, useStore } from '@xyflow/react';
 import KeyIcon from '../ui/icons/KeyIcon.jsx';
@@ -7,28 +7,25 @@ import { TypeSelector } from '../ui/TypeSelector';
 import { getLogicalTypeIcon } from '../features/schema/propertyIcons';
 import { useInheritedDefinition } from '../../hooks/useInheritedDefinition.js';
 import { isSemanticAuthDef } from '../../utils/authDefTypes.js';
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core';
+import { useDroppable } from '@dnd-kit/core';
 import {
   SortableContext,
-  sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
+import { useBrowseDropIndicator } from '../browse/browseDropContext.js';
+import { useInsertFlash } from '../browse/useInsertFlash.js';
+import { propertyLinkIdentity, propertyMatchesLink } from '../browse/useContractLinks.js';
+import { useEditorStore } from '../../store.js';
 
 // Disable layout animation to prevent visual glitch on drop
 const animateLayoutChanges = () => false;
 
-// Sortable property row wrapper component
-const SortablePropertyRow = ({ id: propId, property, children }) => {
+// Sortable property row wrapper component. Registered with the app-level
+// EditorDndProvider (no node-local DndContext), so rows serve both reorder
+// drags and drops from the browse panel.
+const SortablePropertyRow = ({ id: propId, schemaIndex, index, property, children }) => {
   const {
     attributes,
     listeners,
@@ -40,6 +37,24 @@ const SortablePropertyRow = ({ id: propId, property, children }) => {
     id: propId,
     animateLayoutChanges,
   });
+
+  // Drop feedback for drags coming from the browse panel: an insertion line
+  // above the row, or a ring when hovering the row's middle to link onto
+  // this existing property.
+  const dropIndicator = useBrowseDropIndicator();
+  const indicatorMatches = dropIndicator?.schemaIndex === schemaIndex
+    && dropIndicator.index === index;
+  const showDropIndicator = indicatorMatches && dropIndicator.mode === 'insert';
+  const isLinkTarget = indicatorMatches && dropIndicator.mode === 'link';
+
+  // Flash the row after it was inserted from the browse panel
+  const isFlashing = useInsertFlash(schemaIndex, index);
+
+  // Cross-highlight: hovering a linked element in the browse panel
+  // highlights its counterpart rows here.
+  const hoveredContractLink = useEditorStore((state) => state.hoveredContractLink);
+  const isHoverHighlighted = propertyMatchesLink(property, hoveredContractLink);
+  const setHoveredSchemaProperty = useEditorStore((state) => state.setHoveredSchemaProperty);
 
   const { definitionData } = useInheritedDefinition(property?.authoritativeDefinitions);
   const hasSemanticDefinition = !!property?.authoritativeDefinitions?.find((d) => isSemanticAuthDef(d));
@@ -56,7 +71,14 @@ const SortablePropertyRow = ({ id: propId, property, children }) => {
   };
 
   return (
-    <div ref={setNodeRef} style={style}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`transition-colors duration-700 ${isLinkTarget ? 'bg-indigo-50 ring-2 ring-inset ring-indigo-400' : isFlashing ? 'bg-indigo-100' : isHoverHighlighted ? 'bg-blue-50 ring-1 ring-inset ring-blue-300' : ''}`}
+      onMouseEnter={() => setHoveredSchemaProperty(propertyLinkIdentity(property))}
+      onMouseLeave={() => setHoveredSchemaProperty(null)}
+    >
+      {showDropIndicator && <div className="h-0.5 bg-indigo-500 relative z-10"/>}
       {children({
         dragHandleProps: { ...attributes, ...listeners },
         isDragging,
@@ -95,31 +117,25 @@ const SchemaNode = ({ data, id }) => {
   const propertyHoverTimeoutRef = useRef(null);
   const openPropertyDetails = data.openPropertyDetails;
 
-  // Drag-and-drop sensors configuration
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8, // 8px threshold prevents accidental drags and conflicts with React Flow
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
+  // Drop target for the browse panel (semantics / upstream data products):
+  // registered with the app-level EditorDndProvider. The rows are droppable
+  // individually (positional insert with an indicator line); this node-level
+  // target catches drops on the header/empty areas and appends
+  // (id convention props-list-{schemaIndex}, handled by the provider).
+  const schemaIndex = parseInt(String(id).replace('schema-', ''), 10);
+  const propsCount = data.schema.properties?.length || 0;
+  const { setNodeRef: setBrowseDropRef, isOver: isBrowseDropOver } = useDroppable({
+    id: `props-list-${schemaIndex}`,
+    data: { schemaIndex, propsCount },
+    disabled: Number.isNaN(schemaIndex),
+  });
 
-  // Handle drag end for property reordering
-  const handleDragEnd = useCallback((event) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    // Extract indices from IDs (format: "prop-{index}")
-    const fromIndex = parseInt(active.id.toString().replace('prop-', ''), 10);
-    const toIndex = parseInt(over.id.toString().replace('prop-', ''), 10);
-
-    if (!isNaN(fromIndex) && !isNaN(toIndex) && data.onReorderProperty) {
-      data.onReorderProperty(id, fromIndex, toIndex);
-    }
-  }, [data, id]);
+  // End-of-list insertion indicator for browse drags
+  const dropIndicator = useBrowseDropIndicator();
+  const showEndIndicator = dropIndicator?.schemaIndex === schemaIndex
+    && dropIndicator.mode === 'insert'
+    && dropIndicator.index === propsCount
+    && propsCount > 0;
 
   // Cleanup hover timeout on unmount
   useEffect(() => {
@@ -377,7 +393,8 @@ const SchemaNode = ({ data, id }) => {
 
   return (
     <div
-      className="min-w-[250px] group/node dce-schema-node"
+      ref={setBrowseDropRef}
+      className={`min-w-[250px] group/node dce-schema-node ${isBrowseDropOver ? 'rounded ring-2 ring-indigo-500 ring-offset-2' : ''}`}
       style={{ '--dce-handle-hover-scale': Math.min(4, Math.max(1.6, 1.4 / Math.max(zoom || 1, 0.1))) }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -490,14 +507,8 @@ const SchemaNode = ({ data, id }) => {
         {/* Properties List with Drag-and-Drop */}
         <div className="bg-white rounded-b divide-y divide-[#E9EEF4]">
         {data.schema.properties && data.schema.properties.length > 0 ? (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-            modifiers={[restrictToVerticalAxis, restrictToParentElement]}
-          >
             <SortableContext
-              items={data.schema.properties.map((_, idx) => `prop-${idx}`)}
+              items={data.schema.properties.map((_, idx) => `prop-${schemaIndex}-${idx}`)}
               strategy={verticalListSortingStrategy}
             >
               {data.schema.properties.map((prop, index) => {
@@ -513,7 +524,7 @@ const SchemaNode = ({ data, id }) => {
                 const isPropertyDetailsOpen = openPropertyDetails?.propertyIndex === index &&
                                               openPropertyDetails?.nestedIndex == null;
                 return (
-                  <SortablePropertyRow key={`prop-${index}`} id={`prop-${index}`} property={prop}>
+                  <SortablePropertyRow key={`prop-${index}`} id={`prop-${schemaIndex}-${index}`} schemaIndex={schemaIndex} index={index} property={prop}>
                     {({ dragHandleProps, isDragging, hasSemanticDefinition, inheritedLogicalType, isLogicalTypeFromDefinition, effectiveLogicalType }) => (
                       <Fragment>
                         <div
@@ -971,8 +982,8 @@ const SchemaNode = ({ data, id }) => {
                   </SortablePropertyRow>
                 );
               })}
+              {showEndIndicator && <div className="h-0.5 bg-indigo-500 relative z-10"/>}
             </SortableContext>
-          </DndContext>
         ) : (
           <div
             className="px-4 py-3 text-xs text-gray-400 italic cursor-pointer hover:bg-gray-50"

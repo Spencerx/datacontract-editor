@@ -11,6 +11,7 @@ import i18n from './i18n/index.js'
 import { LocalFileStorageBackend } from './services/LocalFileStorageBackend.js'
 import {getValueWithPath, setOverrideStore, setValueWithPath, removeValueWithPath, extractParseErrorMessage, extractParseErrorPos} from './store.js'
 import { createAuthoritativeDefinitionsSlice } from './lib/authoritativeDefinitionsSlice.js';
+import { createBrowsePanelSlice } from './components/browse/browsePanelSlice.js';
 import { registerTool, unregisterTool, clearTools } from './ai/aiService.js'
 import { toolTemplates, createTool, registerBuiltInTools } from './services/aiTools.js'
 import { DEFAULT_AI_CONFIG } from './config/defaults.js'
@@ -95,6 +96,13 @@ const DEFAULT_CONFIG = {
   // When semantics.batchResolveUrl is set, authoritativeDefinitions are batch-fetched
   // on load (POST { urls } -> { url: data }).
   semantics: null,
+
+  // Data products browse panel: { upstreamUrl, productsUrl, contractsBaseUrl }.
+  // upstreamUrl returns the upstream data products (schemas inlined) of the
+  // data product(s) this contract belongs to; productsUrl lists all data
+  // products with contracts ([{externalId, name}]); each product's contracts
+  // load lazily from `${contractsBaseUrl}/{externalId}/contracts`.
+  dataProducts: null,
 
   managedTags: [], // [{tag: 'tag1', href: 'https://...'}, ...]
   allowUnmanagedTags: true,
@@ -388,6 +396,7 @@ function createConfiguredStore(config) {
 				saveLabel: config.saveLabel,
 				titlePrefix: config.titlePrefix,
 				semantics: config.semantics,
+				dataProducts: config.dataProducts,
         managedTags: config.managedTags,
         allowUnmanagedTags: config.allowUnmanagedTags,
 				dataProductsUsingContract: config.dataProductsUsingContract,
@@ -399,6 +408,7 @@ function createConfiguredStore(config) {
 				csrf: config.csrf,
 			},
 			...authoritativeDefinitionsSlice,
+			...createBrowsePanelSlice(set),
 			...actions,
 		};
 	};

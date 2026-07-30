@@ -155,6 +155,20 @@ init({
   ai: { ... },
   managedTags: [{ tag: 'tag-1', href: 'https://example.com/tag-1' }],
   allowUnmanagedTags: true,          // allow to use tags that are not specified as managed (default: true)
+  semantics: {                       // Semantic ontology tree (browse dialog + browse panel)
+    baseUrl: '/api/semantics',       // GET `${baseUrl}/tree` returns the tree
+    batchResolveUrl: null,           // POST { urls } -> { url: definition } to batch-resolve links
+    definitionAcceptHeader: 'application/json'
+  },
+  dataProducts: {                    // Data products browse panel (upstream + all)
+    upstreamUrl: '/api/upstream',    // GET returns [{ dataProduct: { externalId, name },
+                                     //   contracts: [{ externalId, title, version,
+                                     //     schemas: [{ name, description, properties: [...] }] }] }]
+    productsUrl: '/api/products',    // GET returns [{ externalId, name }] (all products with contracts)
+    contractsBaseUrl: '/api/products', // GET `${contractsBaseUrl}/{externalId}/contracts` -> contracts as in upstreamUrl
+    productDetailsUrlTemplate: '/dataproducts/{externalId}',   // "open details" target of tree products
+    contractDetailsUrlTemplate: '/datacontracts/{externalId}'  // "open details" target of tree contracts/schemas/properties
+  },
 
   // Advanced
   persistence: 'none',              // 'localStorage', 'sessionStorage', or 'none' (default: 'none')
