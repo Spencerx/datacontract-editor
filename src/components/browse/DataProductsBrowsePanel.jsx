@@ -8,7 +8,7 @@ import { collectExpandableIds, filterTree } from './semanticTreeUtils.js';
 import { BrowseSearchInput, LinkIcon, LinkedBadge, OpenDetailsButton, TreeChevron } from './browsePanelParts.jsx';
 import { resolveDetailsUrl } from './detailsUrl.js';
 import { Tooltip } from '../ui/index.js';
-import { sourcedPropertyKey, useSourcedContractProperties } from './useContractLinks.js';
+import { nodeSourcedKeys, useSourcedContractProperties } from './useContractLinks.js';
 import { getLogicalTypeIcon } from '../features/schema/propertyIcons.js';
 
 // Fallback glyphs aligned with the host app's icon set: the data product
@@ -69,9 +69,7 @@ function buildProductEntryNodes(entries, idPrefix, urlTemplates = {}) {
     property: prop,
     origin,
     detailsUrl,
-    sourcedKey: origin?.dataProductExternalId && origin?.schemaName && prop.name
-      ? sourcedPropertyKey(origin.dataProductExternalId, `${origin.schemaName}.${prop.name}`)
-      : null,
+    sourcedKeys: prop.name ? nodeSourcedKeys(origin, prop.name) : [],
     children: [
       ...(prop.properties || []),
       ...(prop.items?.properties || []),
@@ -104,6 +102,9 @@ function buildProductEntryNodes(entries, idPrefix, urlTemplates = {}) {
           contractExternalId: contract.externalId,
           contractTitle: contract.title,
           schemaName: schema.name,
+          outputPortExternalId: contract.outputPortExternalId,
+          // Canonical product URL for the lineage URI (falls back to the details URL)
+          productUrl: resolveDetailsUrl(urlTemplates.productUriTemplate || urlTemplates.productDetailsUrlTemplate, entry.dataProduct?.externalId),
         };
         const contractDetailsUrl = resolveDetailsUrl(urlTemplates.contractDetailsUrlTemplate, contract.externalId);
         return {
@@ -144,6 +145,7 @@ export default function DataProductsBrowsePanel() {
   const urlTemplates = {
     productDetailsUrlTemplate: editorConfig?.dataProducts?.productDetailsUrlTemplate,
     contractDetailsUrlTemplate: editorConfig?.dataProducts?.contractDetailsUrlTemplate,
+    productUriTemplate: editorConfig?.dataProducts?.productUriTemplate,
   };
 
   const [upstream, setUpstream] = useState({ status: upstreamUrl ? 'loading' : 'ready', entries: [] });
@@ -267,7 +269,7 @@ export default function DataProductsBrowsePanel() {
     }
 
     return roots;
-  }, [upstream.entries, all, contractsByProduct, productsUrl, urlTemplates.productDetailsUrlTemplate, urlTemplates.contractDetailsUrlTemplate, t]);
+  }, [upstream.entries, all, contractsByProduct, productsUrl, urlTemplates.productDetailsUrlTemplate, urlTemplates.contractDetailsUrlTemplate, urlTemplates.productUriTemplate, t]);
 
   const filteredNodes = useMemo(
     () => (treeFilter ? filterTree(nodes, treeFilter) : nodes),
@@ -345,11 +347,11 @@ function DataProductNodeTooltip({ node, t }) {
 
 function DataProductTreeNode({ node, depth, expandedNodes, toggleNode, sourcedProperties, setHoveredContractLink }) {
   const { t } = useTranslation();
-  const sourcedBy = node.sourcedKey ? sourcedProperties.get(node.sourcedKey) : null;
+  const sourcedBy = (node.sourcedKeys || []).map((key) => sourcedProperties.get(key)).find(Boolean) || null;
 
   // Reverse cross-highlight: a sourced property row is hovered in the schema editor
   const hoveredSchemaProperty = useEditorStore((state) => state.hoveredSchemaProperty);
-  const isReverseHighlighted = !!(node.sourcedKey && hoveredSchemaProperty?.sourcedKeys?.includes(node.sourcedKey));
+  const isReverseHighlighted = !!(node.sourcedKeys || []).some((key) => hoveredSchemaProperty?.sourcedKeys?.includes(key));
   const hasChildren = node.children && node.children.length > 0;
   const canExpand = hasChildren || node.expandable;
   const isExpanded = expandedNodes.has(node.externalId);
@@ -377,7 +379,7 @@ function DataProductTreeNode({ node, depth, expandedNodes, toggleNode, sourcedPr
         className={`group flex items-center gap-1 py-1 pr-1 rounded-md min-w-0 ${isDraggable ? 'cursor-grab active:cursor-grabbing' : canExpand ? 'cursor-pointer' : ''} ${isReverseHighlighted ? 'bg-blue-50 ring-1 ring-inset ring-blue-300' : sourcedBy ? 'hover:bg-blue-50' : 'hover:bg-gray-50'} ${isDragging ? 'opacity-40' : ''}`}
         style={{ paddingLeft: `${depth * 16 + 4}px` }}
         onClick={() => { if (canExpand) toggleNode(node); }}
-        onMouseEnter={sourcedBy ? () => setHoveredContractLink({ type: 'sourced', key: node.sourcedKey }) : undefined}
+        onMouseEnter={sourcedBy ? () => setHoveredContractLink({ type: 'sourced', keys: node.sourcedKeys }) : undefined}
         onMouseLeave={sourcedBy ? () => setHoveredContractLink(null) : undefined}
       >
         <TreeChevron hasChildren={canExpand} isExpanded={isExpanded}

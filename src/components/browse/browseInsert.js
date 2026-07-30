@@ -82,21 +82,48 @@ export function buildPropertyFromContractProperty(prop, origin = null) {
 }
 
 /**
- * Record where a property came from in the ODCS transform fields:
- * transformSourceObjects names the input data product (its id),
- * transformLogic the qualified source property (schema.property), and
- * transformDescription the human-readable summary.
+ * Record where a property came from in the ODCS transform fields.
+ * transformSourceObjects holds a resolvable URI of the source property:
+ *   {productDetailsUrl}?outputPortId={portExternalId}#{schemaName}.{propertyName}
+ * plus a human-readable transformDescription. Without a configured details
+ * URL template it falls back to the previous convention (source object =
+ * data product id, transformLogic = schema.property).
  */
 function applyTransformLineage(target, origin, propertyName) {
-  const sourceObject = origin.dataProductExternalId || origin.contractExternalId;
-  if (sourceObject) {
-    target.transformSourceObjects = [sourceObject];
-  }
-  const qualifiedProperty = [origin.schemaName, propertyName].filter(Boolean).join('.');
-  if (qualifiedProperty) {
-    target.transformLogic = qualifiedProperty;
+  const uri = buildSourcePropertyUri(origin, propertyName);
+  if (uri) {
+    target.transformSourceObjects = [uri];
+  } else {
+    const sourceObject = origin.dataProductExternalId || origin.contractExternalId;
+    if (sourceObject) {
+      target.transformSourceObjects = [sourceObject];
+    }
+    const qualifiedProperty = [origin.schemaName, propertyName].filter(Boolean).join('.');
+    if (qualifiedProperty) {
+      target.transformLogic = qualifiedProperty;
+    }
   }
   target.transformDescription = buildTransformDescription(origin, propertyName);
+}
+
+/**
+ * The source-property URI written into transformSourceObjects. Absolute
+ * (resolved against the embedding page's origin) so it stays resolvable
+ * outside the editor.
+ */
+export function buildSourcePropertyUri(origin, propertyName) {
+  if (!origin?.productUrl) return null;
+  let base = origin.productUrl;
+  try {
+    if (typeof window !== 'undefined' && window.location?.origin) {
+      base = new URL(base, window.location.origin).toString();
+    }
+  } catch {
+    // keep the configured value as-is
+  }
+  const query = origin.outputPortExternalId ? `?outputPortId=${encodeURIComponent(origin.outputPortExternalId)}` : '';
+  const fragment = [origin.schemaName, propertyName].filter(Boolean).join('.');
+  return `${base}${query}${fragment ? `#${fragment}` : ''}`;
 }
 
 // Written into the contract YAML (not UI), so intentionally not translated.

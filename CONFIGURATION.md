@@ -167,7 +167,8 @@ init({
     productsUrl: '/api/products',    // GET returns [{ externalId, name }] (all products with contracts)
     contractsBaseUrl: '/api/products', // GET `${contractsBaseUrl}/{externalId}/contracts` -> contracts as in upstreamUrl
     productDetailsUrlTemplate: '/dataproducts/{externalId}',   // "open details" target of tree products
-    contractDetailsUrlTemplate: '/datacontracts/{externalId}'  // "open details" target of tree contracts/schemas/properties
+    contractDetailsUrlTemplate: '/datacontracts/{externalId}', // "open details" target of tree contracts/schemas/properties
+    productUriTemplate: '/dataproducts/{externalId}'           // canonical product URL for lineage URIs (defaults to productDetailsUrlTemplate)
   },
 
   // Advanced
