@@ -59,3 +59,11 @@ export const collectExpandableIds = (nodes) => {
   collect(nodes);
   return ids;
 };
+
+/**
+ * All link forms of a semantic tree node: `url` (the IRI when the concept
+ * has one, else the platform URL — the form written on selection) plus the
+ * platform URL, so contracts linked via either form match.
+ */
+export const nodeLinkUrls = (node) =>
+  [...new Set([node.url, node.platformUrl].filter(Boolean))];

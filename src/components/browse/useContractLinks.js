@@ -104,7 +104,9 @@ export function useSourcedContractProperties() {
 export function propertyMatchesLink(property, link) {
   if (!link || !property) return false;
   if (link.type === 'authDef') {
-    return (property.authoritativeDefinitions || []).some((def) => def?.url && toAbsoluteUrl(def.url) === link.url);
+    return (property.authoritativeDefinitions || []).some(
+      (def) => def?.url && (link.urls || []).includes(toAbsoluteUrl(def.url)),
+    );
   }
   if (link.type === 'sourced') {
     const keys = propertySourcedKeys(property);

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useDraggable } from '@dnd-kit/core';
 import { useDefinition } from '../../hooks/useDefinition.js';
 import { ElementIcon, EmptyState, LoadingSpinner } from './semanticTree.jsx';
-import { collectExpandableIds, filterTree, isSelectableNode } from './semanticTreeUtils.js';
+import { collectExpandableIds, filterTree, isSelectableNode, nodeLinkUrls } from './semanticTreeUtils.js';
 import { BrowseSearchInput, LinkIcon, LinkedBadge, TreeChevron } from './browsePanelParts.jsx';
 import { Tooltip } from '../ui/index.js';
 import { useLinkedAuthDefUrls } from './useContractLinks.js';
@@ -121,12 +121,12 @@ function SemanticTreeNode({ node, depth, idPath, expandedNodes, toggleNode, link
   const hasChildren = node.children && node.children.length > 0;
   const isExpanded = expandedNodes.has(node.externalId);
   const selectable = isSelectableNode(node);
-  const absUrl = selectable && node.url ? toAbsoluteUrl(node.url) : null;
-  const linkedProperties = absUrl ? linkedUrls.get(absUrl) : null;
+  const absUrls = selectable ? [...new Set(nodeLinkUrls(node).map(toAbsoluteUrl).filter(Boolean))] : [];
+  const linkedProperties = absUrls.map((url) => linkedUrls.get(url)).find(Boolean) || null;
 
   // Reverse cross-highlight: a linked property row is hovered in the schema editor
   const hoveredSchemaProperty = useEditorStore((state) => state.hoveredSchemaProperty);
-  const isReverseHighlighted = !!(absUrl && hoveredSchemaProperty?.urls?.includes(absUrl));
+  const isReverseHighlighted = absUrls.some((url) => hoveredSchemaProperty?.urls?.includes(url));
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `browse-semantics-${idPath}`,
@@ -141,7 +141,7 @@ function SemanticTreeNode({ node, depth, idPath, expandedNodes, toggleNode, link
         className={`group flex items-center gap-1 py-1 pr-1 rounded-md min-w-0 ${selectable ? 'cursor-grab active:cursor-grabbing' : ''} ${isReverseHighlighted ? 'bg-blue-50 ring-1 ring-inset ring-blue-300' : linkedProperties ? 'hover:bg-blue-50' : 'hover:bg-gray-50'} ${isDragging ? 'opacity-40' : ''}`}
         style={{ paddingLeft: `${depth * 16 + 4}px` }}
         onClick={() => { if (hasChildren) toggleNode(node.externalId); }}
-        onMouseEnter={linkedProperties ? () => setHoveredContractLink({ type: 'authDef', url: absUrl }) : undefined}
+        onMouseEnter={linkedProperties ? () => setHoveredContractLink({ type: 'authDef', urls: absUrls }) : undefined}
         onMouseLeave={linkedProperties ? () => setHoveredContractLink(null) : undefined}
       >
         <TreeChevron hasChildren={hasChildren} isExpanded={isExpanded}
