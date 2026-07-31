@@ -430,7 +430,7 @@ const SchemaEditor = ({schemaIndex}) => {
 
 					{/* Schema Section */}
 					<div>
-						{schema[schemaIndex] ? (
+						{schema?.[schemaIndex] ? (
 							<div className="relative">
 								<h3 className="text-base font-semibold leading-6 text-gray-900">
 									{schema[schemaIndex].name || schema[schemaIndex].businessName || t('schema.untitled')}

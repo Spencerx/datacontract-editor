@@ -1,4 +1,4 @@
-import { createElement, useCallback, useMemo, useState } from 'react';
+import { createElement, useCallback, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -34,44 +34,41 @@ const LIST_ID_PATTERN = /^props-list-(\d+)$/;
 const isBrowseDrag = (active) => active?.data?.current?.source === 'browse';
 
 /**
- * Drop target from the current over-target and pointer position. A row has
- * three zones: top 30% inserts before it, bottom 30% inserts after it
+ * Drop target from a collision candidate and the live pointer position. A row
+ * has three zones: top 30% inserts before it, bottom 30% inserts after it
  * (mode 'insert', shown as an indicator line), and the middle links the
  * dragged element onto the existing property (mode 'link', shown as a ring
  * on the row).
+ *
+ * Computed inside the collision pass because that is the only place where the
+ * pointer position and the droppable rects are guaranteed consistent: the
+ * drag events carry an over-target that lags one collision pass behind, and
+ * reconstructing the pointer as activator + delta is off by the activation
+ * distance — both push center drops into the insert zones.
  */
-function computeDropTarget(event) {
-  const { active, over, delta, activatorEvent } = event;
-  if (!over) return null;
+function computeBrowseTarget(collisionId, args) {
+  const id = String(collisionId);
 
-  const rowMatch = ROW_ID_PATTERN.exec(String(over.id));
+  const rowMatch = ROW_ID_PATTERN.exec(id);
   if (rowMatch) {
     const schemaIndex = parseInt(rowMatch[1], 10);
     const overIndex = parseInt(rowMatch[2], 10);
-    const overRect = over.rect;
-    // Zone from the actual pointer position (activator + delta) — the drag
-    // ghost's rect center is offset from the pointer and makes the edge
-    // zones unreliable. Fallback to the ghost center for keyboard drags.
-    let pointerY = null;
-    if (typeof activatorEvent?.clientY === 'number' && delta) {
-      pointerY = activatorEvent.clientY + delta.y;
-    } else if (active.rect.current?.translated) {
-      const translated = active.rect.current.translated;
-      pointerY = translated.top + translated.height / 2;
-    }
+    const rect = args.droppableRects.get(collisionId);
+    const pointerY = args.pointerCoordinates?.y;
     let ratio = 0.5;
-    if (pointerY != null && overRect?.height) {
-      ratio = (pointerY - overRect.top) / overRect.height;
+    if (pointerY != null && rect?.height) {
+      ratio = (pointerY - rect.top) / rect.height;
     }
     if (ratio < 0.3) return { schemaIndex, index: overIndex, mode: 'insert' };
     if (ratio > 0.7) return { schemaIndex, index: overIndex + 1, mode: 'insert' };
     return { schemaIndex, index: overIndex, mode: 'link' };
   }
 
-  const listMatch = LIST_ID_PATTERN.exec(String(over.id));
+  const listMatch = LIST_ID_PATTERN.exec(id);
   if (listMatch) {
     const schemaIndex = parseInt(listMatch[1], 10);
-    return { schemaIndex, index: over.data?.current?.propsCount ?? null, mode: 'insert' };
+    const container = args.droppableContainers.find((c) => c.id === collisionId);
+    return { schemaIndex, index: container?.data?.current?.propsCount ?? null, mode: 'insert' };
   }
 
   return null;
@@ -84,6 +81,8 @@ export default function EditorDndProvider({ children }) {
 
   const [activeBrowseDrag, setActiveBrowseDrag] = useState(null); // active.data.current of a browse drag
   const [indicator, setIndicator] = useState(null); // { schemaIndex, index }
+  // Drop target of the latest collision pass (see computeBrowseTarget)
+  const browseTargetRef = useRef(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -114,6 +113,8 @@ export default function EditorDndProvider({ children }) {
     }
     const within = pointerWithin(args);
     const row = within.find((c) => ROW_ID_PATTERN.test(String(c.id)));
+    const winner = row ?? within[0] ?? null;
+    browseTargetRef.current = winner ? computeBrowseTarget(winner.id, args) : null;
     return row ? [row] : within;
   }, []);
 
@@ -121,11 +122,17 @@ export default function EditorDndProvider({ children }) {
     const { active } = event;
     setActiveBrowseDrag(isBrowseDrag(active) ? active.data.current : null);
     setIndicator(null);
+    browseTargetRef.current = null;
   }, []);
 
   const handleDragMove = useCallback((event) => {
     if (!isBrowseDrag(event.active)) return;
-    setIndicator(computeDropTarget(event));
+    setIndicator(browseTargetRef.current);
+  }, []);
+
+  const handleDragOver = useCallback((event) => {
+    if (!isBrowseDrag(event.active)) return;
+    setIndicator(browseTargetRef.current);
   }, []);
 
   const reorderProperty = useCallback((schemaIndex, fromIndex, toIndex) => {
@@ -143,7 +150,8 @@ export default function EditorDndProvider({ children }) {
     const { active, over } = event;
 
     if (isBrowseDrag(active)) {
-      const target = computeDropTarget(event);
+      const target = browseTargetRef.current;
+      browseTargetRef.current = null;
       setActiveBrowseDrag(null);
       setIndicator(null);
       if (!target) return;
@@ -190,6 +198,7 @@ export default function EditorDndProvider({ children }) {
       modifiers={modifiers}
       onDragStart={handleDragStart}
       onDragMove={handleDragMove}
+      onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
