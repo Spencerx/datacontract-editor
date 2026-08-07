@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../../store.js';
 import { stringifyYaml, parseYaml } from '../../utils/yaml.js';
+import { createSchemaStub } from '../../utils/schemaStub.js';
 
 const SchemasEditor = () => {
   const { t } = useTranslation();
@@ -39,14 +40,7 @@ const SchemasEditor = () => {
         parsed.schema = [];
       }
 
-      // Add new empty schema
-      parsed.schema.push({
-        name: '',
-        businessName: '',
-        description: '',
-        type: 'object',
-        properties: []
-      });
+      parsed.schema.push(createSchemaStub(parsed.schema.length));
 
       const newYaml = stringifyYaml(parsed);
       setYaml(newYaml);

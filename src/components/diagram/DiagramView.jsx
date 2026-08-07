@@ -16,6 +16,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import './DiagramStyles.css';
 import { stringifyYaml, parseYaml } from '../../utils/yaml.js';
+import { createSchemaStub } from '../../utils/schemaStub.js';
 import { useEditorStore } from '../../store.js';
 import SchemaNode from './SchemaNode.jsx';
 import { useLocation } from 'react-router';
@@ -547,13 +548,7 @@ const DiagramViewInner = () => {
   // Handle adding a new schema
   const handleAddSchema = useCallback(() => {
     const updatedSchemas = [...(parsedData?.schema || [])];
-    const schemaCount = updatedSchemas.length + 1;
-    const newSchema = {
-      name: `schema_${schemaCount}`,
-      businessName: `Schema ${schemaCount}`,
-      physicalType: 'table',
-      properties: [],
-    };
+    const newSchema = createSchemaStub(updatedSchemas.length);
 
     // Place the new schema at the center of the current viewport so it
     // doesn't end up off-screen. We persist the position before the YAML
