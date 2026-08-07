@@ -851,10 +851,6 @@
     "to": "Nach",
     "removePair": "Paar entfernen",
     "addPair": "Spaltenpaar hinzufügen (zusammengesetzter Schlüssel)",
-    "description": {
-      "label": "Beschreibung",
-      "placeholder": "Beschreibe die Beziehung…"
-    },
     "drawer": {
       "propertyFallback": "Eigenschaft",
       "resize": "Zum Anpassen ziehen",

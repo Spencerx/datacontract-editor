@@ -69,7 +69,7 @@ const RelationshipEditor = ({ value = [], onChange, relationshipTypeOptions = ['
   const schemaPropertySuggestions = useSchemaPropertySuggestions();
 
   const handleAdd = () => {
-    const newRelationship = { type: 'foreignKey', to: '', description: '' };
+    const newRelationship = { type: 'foreignKey', to: '' };
     if (showFrom) {
       newRelationship.from = '';
     }
@@ -375,17 +375,6 @@ export const RelationshipCard = ({ item, index, relationshipTypeOptions, schemaP
             />
           )}
 
-          {/* Description field */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-0.5">{t('relationship.description.label')}</label>
-            <textarea
-              value={item.description || ''}
-              onChange={(e) => onUpdate(index, 'description', e.target.value)}
-              className={inputClasses}
-              placeholder={t('relationship.description.placeholder')}
-              rows={2}
-            />
-          </div>
         </div>
       )}
     </div>

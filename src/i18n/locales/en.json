@@ -851,10 +851,6 @@
     "to": "To",
     "removePair": "Remove pair",
     "addPair": "Add column pair (composite key)",
-    "description": {
-      "label": "Description",
-      "placeholder": "Describe the relationship..."
-    },
     "drawer": {
       "propertyFallback": "property",
       "resize": "Drag to resize",
@@ -1024,7 +1020,7 @@
     "properties": {
       "heading": "Properties",
       "addFromSemantics": "Add from Semantics",
-        "addProperty": "Add property",
+      "addProperty": "Add property",
       "empty": "No properties defined",
       "addSubProperty": "Add sub-property",
       "addToItems": "Add property to items",
