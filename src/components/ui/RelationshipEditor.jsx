@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useEditorStore } from '../../store.js';
 import Combobox from './Combobox.jsx';
+import CustomPropertiesEditor from './CustomPropertiesEditor.jsx';
 import LinkIcon from './icons/LinkIcon.jsx';
 import ChevronRightIcon from './icons/ChevronRightIcon.jsx';
 import { parseYaml } from '../../utils/yaml.js';
@@ -375,6 +376,12 @@ export const RelationshipCard = ({ item, index, relationshipTypeOptions, schemaP
             />
           )}
 
+          {/* Custom properties */}
+          <CustomPropertiesEditor
+            value={item.customProperties}
+            onChange={(v) => onUpdate(index, 'customProperties', v)}
+            showDescription={true}
+          />
         </div>
       )}
     </div>
