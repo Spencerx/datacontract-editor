@@ -5,6 +5,7 @@ import { readFileSync, writeFileSync, existsSync, readdirSync } from 'fs';
 import { join, extname, resolve, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
+import { parse as parseYaml } from 'yaml';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const distDir = join(__dirname, '..', 'dist');
@@ -18,10 +19,14 @@ function parseArgs() {
   const args = process.argv.slice(2);
   let port = null;
   let targetFile = null;
+  let customizationFile = null;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '-p' || args[i] === '--port') {
       port = parseInt(args[i + 1], 10);
+      i++; // Skip next arg
+    } else if (args[i] === '-c' || args[i] === '--customization') {
+      customizationFile = args[i + 1];
       i++; // Skip next arg
     } else if (args[i] === '-h' || args[i] === '--help') {
       console.log(`
@@ -30,13 +35,16 @@ function parseArgs() {
   Usage: datacontract-editor [options] [file]
 
   Options:
-    -p, --port <port>  Port to run the server on (default: auto-detect from 9090)
-    -h, --help         Show this help message
+    -p, --port <port>            Port to run the server on (default: auto-detect from 9090)
+    -c, --customization <path>   Customization file (default: $CUSTOMIZATION_CONFIG,
+                                 then ./customization.yaml if present)
+    -h, --help                   Show this help message
 
   Examples:
     datacontract-editor                    # Start editor without a file
     datacontract-editor datacontract.yaml  # Edit a specific file
     datacontract-editor -p 3000 my.yaml    # Use a specific port
+    datacontract-editor -c custom.yaml     # Apply customizations (see CUSTOMIZATION.md)
 `);
       process.exit(0);
     } else if (!args[i].startsWith('-')) {
@@ -44,10 +52,10 @@ function parseArgs() {
     }
   }
 
-  return { port, targetFile };
+  return { port, targetFile, customizationFile };
 }
 
-const { port: requestedPort, targetFile } = parseArgs();
+const { port: requestedPort, targetFile, customizationFile } = parseArgs();
 
 // Resolve target file path if provided
 let targetFilePath = null;
@@ -69,6 +77,48 @@ if (targetFile) {
     isNewFile = true;
   }
 }
+
+// Resolve and load the customization file (see CUSTOMIZATION.md). Precedence:
+// --customization flag, CUSTOMIZATION_CONFIG env var, ./customization.yaml.
+// An explicitly requested file that is missing or invalid is an error; the
+// implicit ./customization.yaml is simply skipped when absent.
+function loadCustomizations() {
+  const explicit = customizationFile || process.env.CUSTOMIZATION_CONFIG || null;
+  const candidate = explicit || 'customization.yaml';
+  const path = resolve(process.cwd(), candidate);
+
+  if (!existsSync(path)) {
+    if (explicit) {
+      console.error(`Error: Customization file not found: ${path}`);
+      process.exit(1);
+    }
+    return { path: null, yaml: null, customizations: null };
+  }
+
+  let yaml;
+  let customizations;
+  try {
+    yaml = readFileSync(path, 'utf-8');
+    customizations = parseYaml(yaml);
+  } catch (err) {
+    console.error(`Error: Failed to read customization file ${path}: ${err.message}`);
+    process.exit(1);
+  }
+
+  if (!customizations || typeof customizations !== 'object' ||
+      (!('dataContract' in customizations) && !('yamlFormat' in customizations))) {
+    console.error(`Error: ${path} is not a customization file (expected top-level "dataContract" or "yamlFormat")`);
+    process.exit(1);
+  }
+
+  return { path, yaml, customizations };
+}
+
+const {
+  path: customizationPath,
+  yaml: customizationYaml,
+  customizations
+} = loadCustomizations();
 
 // MIME types for static files
 const mimeTypes = {
@@ -189,6 +239,9 @@ function generateCliIndexHtml() {
   // untouched, which is enough to break out of a single-quoted string literal.
   const fileUrl = JSON.stringify('/api/files/' + encodeURIComponent(targetFileName));
   const fileNameLiteral = JSON.stringify(targetFileName);
+  // JSON.stringify output is a valid JS expression; escape '<' so the YAML content
+  // can never close the surrounding <script> tag.
+  const customizationsLiteral = JSON.stringify(customizations).replace(/</g, '\\u003c');
 
   // Replace the init call with CLI-specific configuration
   const cliInitScript = `
@@ -210,6 +263,7 @@ function generateCliIndexHtml() {
             yaml: yaml,
             persistence: 'none',
             initialView: 'form',
+            customizations: ${customizationsLiteral},
             onSave: async (yamlContent) => {
               const saveResponse = await fetch(${fileUrl}, {
                 method: 'PUT',
@@ -275,6 +329,18 @@ const server = createServer(async (req, res) => {
       res.end('Server Error');
       return;
     }
+  }
+
+  // Customization file, read by the standalone frontend at startup
+  if (url === '/customization.yaml' && method === 'GET') {
+    if (customizationYaml === null) {
+      res.writeHead(404);
+      res.end('Not Found');
+    } else {
+      res.writeHead(200, { 'Content-Type': 'text/yaml' });
+      res.end(customizationYaml);
+    }
+    return;
   }
 
   // API Routes (only available in CLI mode with a target file)
@@ -384,7 +450,8 @@ async function start() {
   datacontract-editor v${pkg.version}
 
   Server running at ${url}${targetFileName ? `
-  ${isNewFile ? 'Creating' : 'Editing'}: ${targetFileName}` : ''}
+  ${isNewFile ? 'Creating' : 'Editing'}: ${targetFileName}` : ''}${customizationPath ? `
+  Customizations: ${customizationPath}` : ''}
 
   Press Ctrl+C to stop
 `);

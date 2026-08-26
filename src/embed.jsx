@@ -675,3 +675,9 @@ export function getFileStorageBackend() {
 }
 
 export { parseYaml };
+
+/**
+ * Fetch and parse a customization.yaml served next to the app (see CUSTOMIZATION.md).
+ * Resolves to null when there is none. Used by the standalone index.html bootstrap.
+ */
+export { loadCustomizationYaml } from './config/runtimeConfig.js';

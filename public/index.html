@@ -60,7 +60,10 @@
     </noscript>
     <div id="root"></div>
     <script type="module">
-      import { init } from './datacontract-editor.es.js';
+      import { init, loadCustomizationYaml } from './datacontract-editor.es.js';
+
+      // Optional customization.yaml served next to the app, see CUSTOMIZATION.md
+      const customizations = await loadCustomizationYaml();
 
       init({
         container: '#root',
@@ -71,6 +74,7 @@
           enabled: true,
           dataContractCliApiServerUrl: 'https://api.datacontract.com'
         },
+        customizations,
       });
     </script>
   </body>

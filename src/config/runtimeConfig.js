@@ -1,3 +1,5 @@
+import { parse as parseYaml } from 'yaml';
+
 /**
  * Runtime Configuration Loader
  *
@@ -12,17 +14,55 @@
  * @returns {Promise<object>} Runtime config or empty object
  */
 export async function loadRuntimeConfig() {
+  let config = {};
   try {
     const response = await fetch('/config.json');
     if (response.ok) {
-      const config = await response.json();
+      config = await response.json();
       console.log('Loaded runtime config:', Object.keys(config));
-      return config;
     }
   } catch (e) {
     // Expected when no config.json exists (e.g., editor.datacontract.com)
   }
-  return {};
+
+  // A customization.yaml served next to the app (see CUSTOMIZATION.md) is applied
+  // unless config.json already carries customizations.
+  if (config.customizations == null) {
+    const customizations = await loadCustomizationYaml();
+    if (customizations) {
+      config = { ...config, customizations };
+    }
+  }
+
+  return config;
+}
+
+/**
+ * Fetch and parse /customization.yaml. Returns null when the file is missing,
+ * unparseable, or not a customization document. SPA servers answer unknown paths
+ * with index.html and a 200, so the content type and shape are checked as well.
+ * @returns {Promise<object|null>}
+ */
+export async function loadCustomizationYaml() {
+  try {
+    const response = await fetch('/customization.yaml');
+    if (!response.ok) return null;
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('text/html')) return null;
+
+    const text = await response.text();
+    const parsed = parseYaml(text);
+    if (!parsed || typeof parsed !== 'object') return null;
+    if (!('dataContract' in parsed) && !('yamlFormat' in parsed)) {
+      console.warn('customization.yaml ignored: expected top-level "dataContract" or "yamlFormat"');
+      return null;
+    }
+    console.log('Loaded customization.yaml:', Object.keys(parsed));
+    return parsed;
+  } catch (e) {
+    console.warn('Failed to load customization.yaml:', e.message);
+    return null;
+  }
 }
 
 /**

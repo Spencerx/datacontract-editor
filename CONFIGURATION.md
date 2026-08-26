@@ -49,6 +49,7 @@ docker run -p 4173:4173 \
 | `AI_MODEL` | `gpt-4o` | Model name (provider-specific) |
 | `AI_AUTH_HEADER` | `bearer` | `bearer` or `api-key` (OpenAI only) |
 | `TESTS_SERVER_URL` | - | Data contract test server URL |
+| `CUSTOMIZATION_CONFIG` | - | Path (inside the container) to a `customization.yaml`, see [CUSTOMIZATION.md](CUSTOMIZATION.md) |
 
 ### 2. Embed (JavaScript API)
 

@@ -39,6 +39,9 @@ Or edit a data contract file directly:
 npx datacontract-editor mydatacontract.odcs.yaml
 ```
 
+A `customization.yaml` in the working directory (or a file referenced via `--customization` /
+`CUSTOMIZATION_CONFIG`) is applied automatically, see [CUSTOMIZATION.md](CUSTOMIZATION.md).
+
 
 
 ### Docker
@@ -88,6 +91,7 @@ docker run -d -p 4173:4173 \
 | `AI_API_KEY` | API key for authentication | Hosted API |
 | `AI_MODEL` | Model name | `gpt-4o` |
 | `AI_AUTH_HEADER` | Auth header: `bearer` or `api-key` | `bearer` |
+| `CUSTOMIZATION_CONFIG` | Path to a mounted `customization.yaml` ([docs](CUSTOMIZATION.md)) | - |
 
 
 ### Data Contract CLI

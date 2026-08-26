@@ -11,7 +11,9 @@ The customization system allows organizations to:
 
 ## Configuration File
 
-Create a `customization.yaml` file in your project root or specify a path via the `CUSTOMIZATION_CONFIG` environment variable.
+Create a `customization.yaml` file in the directory you start the editor from, or point the
+`CUSTOMIZATION_CONFIG` environment variable (or the `--customization` CLI flag) at a file.
+See [Loading Customizations](#loading-customizations) for the details per deployment mode.
 
 ```yaml
 # customization.yaml
@@ -475,7 +477,40 @@ dataContract:
 
 ## Loading Customizations
 
-### Programmatic (Recommended)
+### CLI (`npx datacontract-editor`)
+
+The CLI looks for a customization file in this order and uses the first match:
+
+1. `--customization <path>` (`-c`) flag
+2. `CUSTOMIZATION_CONFIG` environment variable (absolute path, or relative to the working directory)
+3. `./customization.yaml` in the working directory
+
+```bash
+npx datacontract-editor                                   # picks up ./customization.yaml if present
+npx datacontract-editor -c config/customization.yaml
+CUSTOMIZATION_CONFIG=/etc/editor/customization.yaml npx datacontract-editor my.odcs.yaml
+```
+
+A file given explicitly via flag or env variable must exist and parse as YAML with a top-level
+`dataContract` or `yamlFormat` key, otherwise the CLI exits with an error. The resolved file is
+printed at startup.
+
+### Docker
+
+Mount the file into the container and reference it with `CUSTOMIZATION_CONFIG`:
+
+```bash
+docker run -p 4173:4173 \
+  -v $(pwd)/customization.yaml:/customization.yaml:ro \
+  -e CUSTOMIZATION_CONFIG=/customization.yaml \
+  datacontract/editor
+```
+
+Alternatively mount it straight to `/usr/share/nginx/html/customization.yaml`. Either way the
+frontend fetches `/customization.yaml` at startup. A `customizations` object in `/config.json`
+takes precedence if both are present.
+
+### Programmatic (Embedded)
 
 Pass customizations directly to the `init()` function:
 
