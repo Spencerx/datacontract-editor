@@ -187,11 +187,11 @@ const TestResultsPanel = ({ onCheckClick }) => {
         </div>
         <div className="text-sm text-blue-800 dark:text-blue-300 space-y-2">
           <p>{t('testResults.help.runIntro')} <a
-						href="https://cli.datacontract.com/"
+						href="https://docs.datacontract.com/api"
 						target="_blank"
 						rel="noopener noreferrer"
 						className="font-semibold underline hover:text-blue-600 dark:hover:text-blue-200">
-						cli.datacontract.com/API
+						docs.datacontract.com/api
 					</a> {t('testResults.help.runIntroSuffix')}</p>
           <div className="bg-gray-900 text-gray-100 p-2 rounded font-mono text-xs">
             $ datacontract api
@@ -200,12 +200,12 @@ const TestResultsPanel = ({ onCheckClick }) => {
           <p>
             {t('testResults.help.moreInfo')}{' '}
             <a
-              href="https://cli.datacontract.com/API"
+              href="https://docs.datacontract.com/api"
               target="_blank"
               rel="noopener noreferrer"
               className="font-semibold underline hover:text-blue-600 dark:hover:text-blue-200"
             >
-              https://cli.datacontract.com/API
+              https://docs.datacontract.com/api
             </a>
           </p>
         </div>
