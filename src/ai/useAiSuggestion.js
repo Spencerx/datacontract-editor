@@ -94,11 +94,6 @@ export function useAiSuggestion({ fieldName, fieldPath, placeholder }) {
 				return null;
 			}
 
-			if (!aiConfig?.apiKey) {
-				setError('AI API key not configured');
-				return null;
-			}
-
 			setIsLoading(true);
 			setError(null);
 

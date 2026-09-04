@@ -21,7 +21,7 @@ export async function loadRuntimeConfig() {
       config = await response.json();
       console.log('Loaded runtime config:', Object.keys(config));
     }
-  } catch (e) {
+  } catch {
     // Expected when no config.json exists (e.g., editor.datacontract.com)
   }
 
@@ -101,10 +101,15 @@ export function buildEditorConfig(runtimeConfig) {
         provider: runtimeConfig.ai.provider || 'openai',
         endpoint: runtimeConfig.ai.endpoint,
         apiKey: runtimeConfig.ai.apiKey || '',
-        model: runtimeConfig.ai.model,
         authHeader: runtimeConfig.ai.authHeader || 'bearer',
         headers: runtimeConfig.ai.headers || {},
       };
+      // The Docker image writes `"model": ""` when AI_MODEL is unset. Leave the key out
+      // in that case so the spread in aiService keeps the DEFAULT_AI_CONFIG model instead
+      // of sending an empty model name.
+      if (runtimeConfig.ai.model) {
+        config.ai.model = runtimeConfig.ai.model;
+      }
     }
   }
   // If runtimeConfig.ai is undefined, don't set config.ai
