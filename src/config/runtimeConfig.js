@@ -91,12 +91,16 @@ export function buildEditorConfig(runtimeConfig) {
   if (runtimeConfig.ai !== undefined) {
     if (runtimeConfig.ai.enabled === false) {
       config.ai = { enabled: false };
-    } else if (runtimeConfig.ai.endpoint && runtimeConfig.ai.apiKey) {
+    } else if (runtimeConfig.ai.enabled === true && runtimeConfig.ai.endpoint) {
+      // The API key is optional: an auth-less proxy / LiteLLM gateway (see AI_PROXY.md)
+      // keeps the real provider key server-side, so AI_API_KEY is empty. The provider
+      // adapters gate on `if (config.apiKey)` and just omit the auth header when it is
+      // blank, matching the `|| ''` idiom in config/defaults.js.
       config.ai = {
         enabled: true,
         provider: runtimeConfig.ai.provider || 'openai',
         endpoint: runtimeConfig.ai.endpoint,
-        apiKey: runtimeConfig.ai.apiKey,
+        apiKey: runtimeConfig.ai.apiKey || '',
         model: runtimeConfig.ai.model,
         authHeader: runtimeConfig.ai.authHeader || 'bearer',
         headers: runtimeConfig.ai.headers || {},

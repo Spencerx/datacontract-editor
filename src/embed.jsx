@@ -428,6 +428,27 @@ function createConfiguredStore(config) {
         name: 'editor-store',
         storage: storageConfig,
         partialize: ({ authoritativeDefinitions, ...rest }) => rest, // eslint-disable-line no-unused-vars
+        // Deep-merge editorConfig on rehydrate (mirrors src/store.js). The default
+        // shallow merge lets a stale persisted editorConfig replace the one just
+        // built from init() config — which hides the AI assistant when it was
+        // enabled after the store was first persisted. init() config wins for `ai`
+        // (there is no in-app AI settings UI); user-editable `tests` values persist.
+        merge: (persistedState, currentState) => ({
+          ...currentState,
+          ...persistedState,
+          editorConfig: {
+            ...currentState.editorConfig,
+            ...persistedState?.editorConfig,
+            ai: {
+              ...persistedState?.editorConfig?.ai,
+              ...currentState.editorConfig?.ai,
+            },
+            tests: {
+              ...currentState.editorConfig?.tests,
+              ...persistedState?.editorConfig?.tests,
+            },
+          },
+        }),
       })
     );
   } else {
@@ -677,7 +698,10 @@ export function getFileStorageBackend() {
 export { parseYaml };
 
 /**
- * Fetch and parse a customization.yaml served next to the app (see CUSTOMIZATION.md).
- * Resolves to null when there is none. Used by the standalone index.html bootstrap.
+ * Runtime config helpers used by the standalone index.html bootstrap:
+ * - loadCustomizationYaml: fetch/parse a customization.yaml served next to the app.
+ * - loadRuntimeConfig: fetch /config.json (Docker deployments) and fold in customization.yaml.
+ * - buildEditorConfig: turn that runtime config into an init() config fragment.
+ * See CUSTOMIZATION.md and CONFIGURATION.md.
  */
-export { loadCustomizationYaml } from './config/runtimeConfig.js';
+export { loadCustomizationYaml, loadRuntimeConfig, buildEditorConfig } from './config/runtimeConfig.js';
